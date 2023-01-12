@@ -54,3 +54,7 @@ func main() {
 ```
 go generate
 ```
+
+已知问题 @BasePath 不被 gin-swagger 正确解析
+
+本项目支持每个文件一个@BasePath,不支持全局@BasePath
