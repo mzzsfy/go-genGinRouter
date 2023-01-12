@@ -1,6 +1,6 @@
 # go-genGinRouter
 
-配合 https://github.com/swaggo/swag 
+按 https://github.com/swaggo/gin-swagger 编写注释,然后自动生成路由
 
 编写 go 文件并添加注释
 ```go
