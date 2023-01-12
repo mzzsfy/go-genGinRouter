@@ -45,6 +45,17 @@ var (
         "header": func(obj any, context *gin.Context) error {
             return context.BindHeader(obj)
         },
+        "path": func(obj any, context *gin.Context) error {
+            params := context.Params
+            values := make(map[string][]string)
+            for _, param := range params {
+                values[param.Key] = []string{param.Value}
+            }
+            if err := binding.MapFormWithTag(obj, values, "path"); err != nil {
+                return err
+            }
+            return validateBinding(obj)
+        },
     }
     regFns []func()
     lock   sync.Mutex
