@@ -99,6 +99,7 @@ func main() {
                             p := strings.TrimSpace(text[8:])
                             if strings.Contains(p, "[") {
                                 p, m, _ = strings.Cut(p, "[")
+                                p = strings.TrimSpace(p)
                                 m = strings.ToUpper(strings.TrimSpace(strings.TrimRight(m, "]")))
                             }
                             e := HttpPath{
