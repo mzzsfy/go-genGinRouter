@@ -1,0 +1,33 @@
+//This is an auto-generated file, please do not edit it manually
+//这是自动生成的文件,请不要手动编辑
+
+package routers
+
+import (
+    "{{ .PackageBaseName }}/{{ .PackageName }}"
+)
+
+//function
+func init() {
+    regFns = append(regFns, func() {
+{{- range $f := .Functions }}
+{{- range $s := $f.Paths}}
+        registerRouter("{{ $f.BasePath }}", {{ $.PackageName }}.{{ $f.Name }},"{{ $s.PathMethod }}")
+{{- end -}}
+{{- end}}
+    })
+}
+
+//struct function
+func init() {
+    regFns = append(regFns, func() {
+{{- range $f := .StructFunctions }}
+        {
+            h:=toBind(&{{ $.PackageName }}.{{ $f.StructName }}{}, "{{ $f.Name }}")
+{{- range $s := $f.Paths}}
+            registerRouter("{{ $f.BasePath }}", h, "{{$s.PathMethod}}")
+{{- end}}
+        }
+{{- end}}
+    })
+}

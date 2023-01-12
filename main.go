@@ -1,0 +1,243 @@
+package main
+
+import (
+    "bytes"
+    _ "embed"
+    "flag"
+    "go/ast"
+    "go/parser"
+    "go/token"
+    "io/fs"
+    "os"
+    "path"
+    "path/filepath"
+    "strings"
+    "text/template"
+)
+
+var (
+    routerAnnotation   = "@Router"
+    basePathAnnotation = "@BasePath"
+    //go:embed template/ginByPackage.gotemp
+    ginByPackageTemplate []byte
+    //go:embed template/main.gotemp
+    mainTemplate []byte
+)
+
+type FileInfo struct {
+    Path string
+}
+type HttpPath struct {
+    Path       string
+    Method     string
+    PathMethod string
+}
+type Function struct {
+    FileInfo
+    BasePath string
+    Name     string
+    Paths    []HttpPath
+}
+type StructFunction struct {
+    Function
+    StructName string
+}
+type Package struct {
+    PackageBaseName string
+    PackageName     string
+    Functions       []Function
+    StructFunctions []StructFunction
+}
+
+var (
+    workDir    = flag.String("workDir", "./", "需要操作的目录")
+    moduleName = flag.String("moduleName", "", "手动指定主module名称,否则读取go.mod文件夹")
+)
+
+func main() {
+    flag.Parse()
+    pkgs, err := ParseDir(token.NewFileSet(), *workDir, nil, parser.ParseComments)
+    if err != nil {
+        panic(err)
+    }
+    baseModuleName := *moduleName
+    if baseModuleName == "" {
+        baseModuleName = findModuleName(*workDir)
+    }
+    var contexts []*Package
+    for pname, p := range pkgs {
+        pc := &Package{}
+        pc.PackageBaseName = findModuleName(path.Base(pname))
+        if pc.PackageBaseName == "" {
+            pc.PackageBaseName = baseModuleName
+        }
+        pc.PackageName = pname
+        for fname, f := range p.Files {
+            fileBasePath := ""
+            for _, commentGroup := range f.Comments {
+                for _, comment := range commentGroup.List {
+                    text := strings.TrimSpace(comment.Text[2:])
+                    if strings.HasPrefix(text, basePathAnnotation) {
+                        if fileBasePath == "" || len(commentGroup.List) <= 3 {
+                            fileBasePath = strings.TrimSpace(text[9:])
+                        }
+                    }
+                }
+            }
+            for _, dx := range f.Decls {
+                basePath := fileBasePath
+                switch d := dx.(type) {
+                case *ast.FuncDecl:
+                    if d.Doc == nil || len(d.Doc.List) == 0 {
+                        continue
+                    }
+                    var httpPath []HttpPath
+                    for _, comment := range d.Doc.List {
+                        text := strings.TrimSpace(comment.Text[2:])
+                        if strings.HasPrefix(text, routerAnnotation) {
+                            m := ""
+                            p := strings.TrimSpace(text[8:])
+                            if strings.Contains(p, "[") {
+                                p, m, _ = strings.Cut(p, "[")
+                                m = strings.ToUpper(strings.TrimSpace(strings.TrimRight(m, "]")))
+                            }
+                            e := HttpPath{
+                                Path:       p,
+                                Method:     m,
+                                PathMethod: p,
+                            }
+                            if m != "" {
+                                e.PathMethod = p + `", "` + m
+                            }
+                            httpPath = append(httpPath, e)
+                        } else if strings.HasPrefix(text, basePathAnnotation) {
+                            basePath = strings.TrimSpace(text[9:])
+                        }
+                    }
+                    if len(httpPath) <= 0 {
+                        continue
+                    }
+                    if d.Recv != nil && len(d.Recv.List) > 0 {
+                        structType := d.Recv.List[0].Type
+                        if expr, ok := structType.(*ast.StarExpr); ok {
+                            structType = expr.X
+                        }
+                        ident := structType.(*ast.Ident)
+
+                        pc.StructFunctions = append(pc.StructFunctions, StructFunction{
+                            Function: Function{
+                                FileInfo: FileInfo{Path: fname},
+                                BasePath: basePath,
+                                Paths:    httpPath,
+                                Name:     d.Name.Name,
+                            },
+                            StructName: ident.Name,
+                        })
+                    } else {
+                        pc.Functions = append(pc.Functions, Function{
+                            FileInfo: FileInfo{Path: fname},
+                            BasePath: basePath,
+                            Paths:    httpPath,
+                            Name:     d.Name.Name,
+                        })
+                    }
+                default:
+                }
+            }
+        }
+        if len(pc.Functions) > 0 || len(pc.StructFunctions) > 0 {
+            contexts = append(contexts, pc)
+        }
+    }
+    t := template.New("main.go")
+    parse, _ := t.Parse(string(mainTemplate))
+    b := &bytes.Buffer{}
+    parse.Execute(b, contexts)
+    os.Mkdir(*workDir+"/routers", os.ModeDir)
+    os.WriteFile(*workDir+"/routers/main.go", b.Bytes(), os.ModePerm)
+    for _, context := range contexts {
+        wPath := *workDir + "/routers/" + context.PackageName + ".go"
+        t := template.New(context.PackageName + ".go")
+        _, err := t.Parse(string(ginByPackageTemplate))
+        if err != nil {
+            panic(err)
+        }
+        b := &bytes.Buffer{}
+        err = t.Execute(b, context)
+        if err != nil {
+            panic(err)
+        }
+        i := b.Bytes()
+        os.WriteFile(wPath, i, os.ModePerm)
+    }
+}
+
+func findModuleName(dir string) string {
+    file, e := os.ReadFile(dir + "/go.mod")
+    if e == nil {
+        split := strings.Split(string(file), "\n")
+        for _, s := range split {
+            if s != "" && strings.HasPrefix(strings.TrimSpace(s), "module") {
+                return strings.TrimSpace(s[7:])
+            }
+        }
+    }
+    return ""
+}
+
+func ParseDir(fset *token.FileSet, path string, filter func(fs.FileInfo) bool, mode parser.Mode) (pkgs map[string]*ast.Package, first error) {
+    list, err := os.ReadDir(path)
+    if err != nil {
+        return nil, err
+    }
+    path = strings.TrimLeft(path, "./")
+    pkgs = make(map[string]*ast.Package)
+    for _, d := range list {
+        if strings.HasPrefix(d.Name(), ".") {
+            continue
+        }
+        if d.IsDir() {
+            p, f := ParseDir(fset, filepath.Join(path, d.Name()), filter, parser.ParseComments)
+            if f != nil {
+                first = f
+            }
+            for s, a := range p {
+                pkgs[strings.TrimLeft(strings.ReplaceAll(filepath.Join(path, s), "\\", "/"), "/")] = a
+            }
+            continue
+        }
+        if !strings.HasSuffix(d.Name(), ".go") {
+            continue
+        }
+        if filter != nil {
+            info, err := d.Info()
+            if err != nil {
+                return nil, err
+            }
+            if !filter(info) {
+                continue
+            }
+        }
+        filename := filepath.Join(path, d.Name())
+        if src, err := parser.ParseFile(fset, filename, nil, mode); err == nil {
+            name := src.Name.Name
+            pName := name
+            if pName == "main" && path == "" {
+                name = ""
+            }
+            pkg, found := pkgs[name]
+            if !found {
+                pkg = &ast.Package{
+                    Name:  pName,
+                    Files: make(map[string]*ast.File),
+                }
+                pkgs[name] = pkg
+            }
+            pkg.Files[filename] = src
+        } else if first == nil {
+            first = err
+        }
+    }
+
+    return
+}
