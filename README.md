@@ -2,6 +2,13 @@
 
 按 https://github.com/swaggo/gin-swagger 编写注释,然后自动生成路由
 
+优势: 
+- 生成代码简单,低侵入性
+- 生成代码暴露部分核心部分,方便二次开发
+- 携带参数绑定功能,支持tag: `query`,`form`,`json`,`header`,`path`,可动态添加,见生成文件中:routers.BindByTag
+- 携带参数检验功能,使用 https://github.com/go-playground/validator/v10
+- 支持每个文件一个@BasePath,也可在方法上单独覆盖,不支持全局@BasePath,@BasePath逻辑为gin.Group()
+
 编写 go 文件并添加注释
 ```go
 package xxx
@@ -56,5 +63,3 @@ go generate
 ```
 
 已知问题 @BasePath 不被 gin-swagger 正确解析
-
-本项目支持每个文件一个@BasePath,不支持全局@BasePath
