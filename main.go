@@ -4,6 +4,7 @@ import (
     "bytes"
     _ "embed"
     "flag"
+    "fmt"
     "go/ast"
     "go/parser"
     "go/token"
@@ -57,6 +58,7 @@ var (
 func main() {
     flag.Parse()
     pkgs, err := ParseDir(token.NewFileSet(), *workDir, nil, parser.ParseComments)
+    fmt.Printf("开始生成路由,工作路径: %s, \n", *workDir)
     if err != nil {
         panic(err)
     }
@@ -66,6 +68,7 @@ func main() {
     }
     var contexts []*Package
     for pname, p := range pkgs {
+        fmt.Printf("处理中: %s, \n", pname)
         pc := &Package{}
         pc.PackageBaseName = findModuleName(path.Base(pname))
         if pc.PackageBaseName == "" {
@@ -155,7 +158,12 @@ func main() {
     b := &bytes.Buffer{}
     parse.Execute(b, contexts)
     os.Mkdir(*workDir+"/routers", os.ModeDir)
-    os.WriteFile(*workDir+"/routers/main.go", b.Bytes(), os.ModePerm)
+    name := *workDir + "/routers/main.go"
+    err = os.WriteFile(name, b.Bytes(), os.ModePerm)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Printf("已写入:%s\n", name)
     for _, context := range contexts {
         wPath := *workDir + "/routers/" + context.PackageName + ".go"
         t := template.New(context.PackageName + ".go")
@@ -169,7 +177,11 @@ func main() {
             panic(err)
         }
         i := b.Bytes()
-        os.WriteFile(wPath, i, os.ModePerm)
+        err = os.WriteFile(wPath, i, os.ModePerm)
+        if err != nil {
+            panic(err)
+        }
+        fmt.Printf("已写入:%s\n", wPath)
     }
 }
 
