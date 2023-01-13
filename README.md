@@ -44,20 +44,32 @@ func (t Test) HelloWorld1(g *gin.Context) {
 ```
 
 ```go
+//#生成swagger文档
+//go:generate go install github.com/swaggo/swag/cmd/swag@latest
+//go:generate swag init
+
+//#生成路由
 //go:generate go install github.com/mzzsfy/go-genGinRouter@latest
 //go:generate go-genGinRouter
 
-var g = gin.Default()
-
-func init() {
-    routers.RegisterErrorHandle(g)
-    routers.RegisterRouter(func() *gin.Engine { return g })
-}
 func main() {
+    g := gin.Default()
+    // 在这里添加根中间件
+    
+    // 简单的统一异常处理,可不注册自己编写
+    routers.RegisterErrorHandle(g)
+    // 在这里添加组中间件
+    
+    // 注册生成的路由
+    routers.RegisterRouter(g)
+    
+    //在这里注册自定义路由
+    
     g.Run(":8080")
 }
 ```
 
+执行
 ```
 go generate
 ```
