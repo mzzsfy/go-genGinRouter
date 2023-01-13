@@ -68,7 +68,7 @@ func main() {
     }
     var contexts []*Package
     for pname, p := range pkgs {
-        fmt.Printf("分析中: %s, \n", pname)
+        fmt.Printf("分析中: %s\n", pname)
         pc := &Package{}
         pc.PackageBaseName = findModuleName(path.Base(pname))
         if pc.PackageBaseName == "" {
@@ -158,14 +158,14 @@ func main() {
     b := &bytes.Buffer{}
     parse.Execute(b, contexts)
     os.Mkdir(*workDir+"/routers", os.ModeDir)
-    name := *workDir + "/routers/main.go"
+    name := path.Clean(*workDir + "/routers/main.go")
     err = os.WriteFile(name, b.Bytes(), os.ModePerm)
     if err != nil {
         panic(err)
     }
     fmt.Printf("已写入:%s\n", name)
     for _, context := range contexts {
-        wPath := *workDir + "/routers/" + context.PackageName + ".go"
+        wPath := path.Clean(*workDir + "/routers/" + context.PackageName + ".go")
         t := template.New(context.PackageName + ".go")
         _, err := t.Parse(string(ginByPackageTemplate))
         if err != nil {

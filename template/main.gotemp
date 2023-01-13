@@ -14,9 +14,9 @@ import (
 )
 
 var (
-    getGin    func() *gin.Engine
+    g         *gin.Engine
     Validator binding.StructValidator = &defaultValidator{}
-    Groups                            = make(map[string]*gin.RouterGroup)
+    groups                            = make(map[string]*gin.RouterGroup)
     BindByTag                         = map[string]func(any, *gin.Context) error{
         "query": func(obj any, context *gin.Context) error {
             values := context.Request.URL.Query()
@@ -85,11 +85,12 @@ func RegisterErrorHandle(ginEngine *gin.Engine) {
     })
 }
 
-func RegisterRouter(ginFn func() *gin.Engine) {
+func RegisterRouter(Gin *gin.Engine) {
     lock.Lock()
     defer lock.Unlock()
-    getGin = ginFn
-    Groups = make(map[string]*gin.RouterGroup)
+    g = Gin
+    // 生成新的groups,允许重复绑定到多个gin实例
+    groups = make(map[string]*gin.RouterGroup)
     for _, f := range regFns {
         f()
     }
@@ -106,10 +107,13 @@ func registerRouter(group string, handler gin.HandlerFunc, relativePath string, 
 }
 
 func GetGroup(group string) *gin.RouterGroup {
-    routerGroup := Groups[group]
+    routerGroup := groups[group]
     if routerGroup == nil {
-        Groups[group] = getGin().Group(group)
-        routerGroup = Groups[group]
+        if g==nil {
+            panic("未绑定gin,需要先使用RegisterRouter")
+        }
+        routerGroup = g.Group(group)
+        groups[group] = routerGroup
     }
     return routerGroup
 }
