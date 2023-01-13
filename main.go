@@ -68,7 +68,7 @@ func main() {
     }
     var contexts []*Package
     for pname, p := range pkgs {
-        fmt.Printf("处理中: %s, \n", pname)
+        fmt.Printf("分析中: %s, \n", pname)
         pc := &Package{}
         pc.PackageBaseName = findModuleName(path.Base(pname))
         if pc.PackageBaseName == "" {
