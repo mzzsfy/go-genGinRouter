@@ -14,16 +14,18 @@ import (
 )
 
 var (
-    g         *gin.Engine
+    // Validator 绑定的参数检验工具
     Validator binding.StructValidator = &defaultValidator{}
-    groups                            = make(map[string]*gin.RouterGroup)
-    BindByTag                         = map[string]func(any, *gin.Context) error{
+    // BeforeValidator 返回false跳过验证
+    BeforeValidator = func(*gin.Context, any) bool { return true }
+    // BindByTag 自定义Tag与数据绑定的关系
+    BindByTag = map[string]func(any, *gin.Context) error{
         "query": func(obj any, context *gin.Context) error {
             values := context.Request.URL.Query()
             if err := binding.MapFormWithTag(obj, values, "query"); err != nil {
                 return err
             }
-            return validateBinding(obj)
+            return nil
         },
         "form": func(obj any, context *gin.Context) error {
             req := context.Request
@@ -54,18 +56,22 @@ var (
             if err := binding.MapFormWithTag(obj, values, "path"); err != nil {
                 return err
             }
-            return validateBinding(obj)
+            return nil
         },
     }
-    regFns []func()
-    lock   sync.Mutex
-    allMethods=[]string{
+
+    g          *gin.Engine
+    groups     = make(map[string]*gin.RouterGroup)
+    regFns     []func()
+    lock       sync.Mutex
+    allMethods = []string{
         http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch,
         http.MethodHead, http.MethodOptions, http.MethodDelete, http.MethodConnect,
         http.MethodTrace,
     }
 )
 
+// RegisterErrorHandle 简单的统一异常拦截,可自定义
 func RegisterErrorHandle(ginEngine *gin.Engine) {
     ginEngine.Use(func(context *gin.Context) {
         context.Next()
@@ -85,31 +91,44 @@ func RegisterErrorHandle(ginEngine *gin.Engine) {
     })
 }
 
+// RegisterRouter 注册路由,当gin不是同一个实例时,Group中信息也会被更新
 func RegisterRouter(Gin *gin.Engine) {
     lock.Lock()
     defer lock.Unlock()
-    g = Gin
-    // 生成新的groups,允许重复绑定到多个gin实例
-    groups = make(map[string]*gin.RouterGroup)
+    if g != Gin {
+        g = Gin
+        // 生成新的groups,允许重复绑定到多个gin实例
+        groups = make(map[string]*gin.RouterGroup)
+    }
     for _, f := range regFns {
         f()
     }
 }
 
 func registerRouter(group string, handler gin.HandlerFunc, relativePath string, methods ...string) {
-    g:=GetGroup(group)
-    if len(methods)<=0 {
-        methods=allMethods
+    g := GetGroup(group)
+    if len(methods) <= 0 {
+        methods = allMethods
     }
     for _, m := range methods {
-        g.Handle(m, relativePath , handler)
+        g.Handle(m, relativePath, handler)
     }
 }
 
+// BindGin 绑定gin,当gin不是同一个实例时,Group中信息也会被更新
+func BindGin(Gin *gin.Engine) {
+    if g != Gin {
+        g = Gin
+        // 生成新的groups,允许重复绑定到多个gin实例
+        groups = make(map[string]*gin.RouterGroup)
+    }
+}
+
+// GetGroup 获取一个组,用于注册中间件
 func GetGroup(group string) *gin.RouterGroup {
     routerGroup := groups[group]
     if routerGroup == nil {
-        if g==nil {
+        if g == nil {
             panic("未绑定gin,需要先使用RegisterRouter")
         }
         routerGroup = g.Group(group)
@@ -144,7 +163,7 @@ func toBind(structPointer any, funcName string) gin.HandlerFunc {
                 }
             }
         }
-        if bind {
+        if bind && BeforeValidator(context, obj) {
             err := validate(obj)
             if err != nil {
                 context.Status(400)
@@ -202,13 +221,6 @@ func validate(obj any) error {
         return nil
     }
     return Validator.ValidateStruct(obj)
-}
-
-func validateBinding(obj any) error {
-    if binding.Validator == nil {
-        return nil
-    }
-    return binding.Validator.ValidateStruct(obj)
 }
 
 type defaultValidator struct {
