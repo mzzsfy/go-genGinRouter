@@ -60,11 +60,12 @@ var (
         },
     }
 
-    g          *gin.Engine
-    groups     = make(map[string]*gin.RouterGroup)
-    regFns     []func()
-    lock       sync.Mutex
-    allMethods = []string{
+    g              *gin.Engine
+    groups         = make(map[string]*gin.RouterGroup)
+    groupsHandlers = make(map[string][]gin.HandlerFunc)
+    regFns         []func()
+    lock           sync.Mutex
+    allMethods     = []string{
         http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch,
         http.MethodHead, http.MethodOptions, http.MethodDelete, http.MethodConnect,
         http.MethodTrace,
@@ -73,7 +74,7 @@ var (
 
 // RegisterErrorHandle 简单的统一异常拦截,可自定义
 func RegisterErrorHandle(ginEngine *gin.Engine) {
-    ginEngine.Use(func(context *gin.Context) {
+    ginEngine.Handlers = append([]gin.HandlerFunc{func(context *gin.Context) {
         context.Next()
         es := context.Errors
         if len(es) == 0 {
@@ -88,7 +89,7 @@ func RegisterErrorHandle(ginEngine *gin.Engine) {
             "msg":  e.Error(),
             "data": e,
         })
-    })
+    }}, ginEngine.Handlers...)
 }
 
 // RegisterRouter 注册路由,当gin不是同一个实例时,Group中信息也会被更新
@@ -132,9 +133,18 @@ func GetGroup(group string) *gin.RouterGroup {
             panic("未绑定gin,需要先使用RegisterRouter")
         }
         routerGroup = g.Group(group)
+        routerGroup.Handlers = append(routerGroup.Handlers, groupsHandlers[group]...)
         groups[group] = routerGroup
     }
     return routerGroup
+}
+
+// AddGroupHandlers 统一维护中间件,防止加载顺序不一致导致的未注册成功
+func AddGroupHandlers(group string, handlers ...gin.HandlerFunc) {
+    groupsHandlers[group] = append(groupsHandlers[group], handlers...)
+    if g, ok := groups[group]; ok {
+        g.Handlers = append(g.Handlers, handlers...)
+    }
 }
 func toBind(structPointer any, funcName string) gin.HandlerFunc {
     t := reflect.TypeOf(structPointer)
