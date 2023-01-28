@@ -23,7 +23,8 @@ func init() {
     regFns = append(regFns, func() {
 {{- range $f := .StructFunctions }}
         {
-            h:=toBind(&{{ $.PackageName }}.{{ $f.StructName }}{}, "{{ $f.Name }}")
+            p:=&{{ $.PackageName }}.{{ $f.StructName }}{}
+            h:=toBindF(p,p.{{ $f.Name }}, "{{ $f.Name }}")
 {{- range $s := $f.Paths}}
             registerRouter("{{ $f.BasePath }}", h, "{{$s.PathMethod}}")
 {{- end}}

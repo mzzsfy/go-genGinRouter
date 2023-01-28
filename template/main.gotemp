@@ -146,6 +146,9 @@ func AddGroupHandlers(group string, handlers ...gin.HandlerFunc) {
         g.Handlers = append(g.Handlers, handlers...)
     }
 }
+func toBindF(structPointer any, fn func(*gin.Context), funcName string) gin.HandlerFunc {
+    return toBind(structPointer, funcName)
+}
 func toBind(structPointer any, funcName string) gin.HandlerFunc {
     t := reflect.TypeOf(structPointer)
     m, ok := t.MethodByName(funcName)
