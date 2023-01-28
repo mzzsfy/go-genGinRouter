@@ -44,6 +44,11 @@ func (t Test) HelloWorld1(g *gin.Context) {
 ```
 
 ```go
+import (
+    _ "<<你的包名>>/routers"
+    "<<你的包名>>/routers/reg"
+)
+
 //#生成swagger文档
 //go:generate go install github.com/swaggo/swag/cmd/swag@latest
 //go:generate swag init
