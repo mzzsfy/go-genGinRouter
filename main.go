@@ -168,7 +168,8 @@ func main() {
     b := &bytes.Buffer{}
     parse.Execute(b, contexts)
     os.Mkdir(*workDir+"/routers", os.ModeDir)
-    name := path.Clean(*workDir + "/routers/main.go")
+    os.Mkdir(*workDir+"/routers/reg", os.ModeDir)
+    name := path.Clean(*workDir + "/routers/reg/core.go")
     err = os.WriteFile(name, b.Bytes(), os.ModePerm)
     if err != nil {
         panic(err)

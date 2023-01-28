@@ -57,12 +57,12 @@ func main() {
     // 在这里添加根中间件
     
     // 简单的统一异常处理,可不注册自己编写
-    routers.RegisterErrorHandle(g)
+    reg.RegisterErrorHandle(g)
     // 在这里添加组中间件
-    routers.AddGroupHandlers("<<组>>", func(context *gin.Context) {
+    reg.AddGroupHandlers("<<组>>", func(context *gin.Context) {
     })
     // 注册生成的路由
-    routers.RegisterRouter(g)
+    reg.RegisterRouter(g)
     
     //在这里注册自定义路由
     

@@ -1,7 +1,7 @@
 //This is an auto-generated file, please do not edit it manually
 //这是自动生成的文件,请不要手动编辑
 
-package routers
+package reg
 
 import (
     "github.com/gin-gonic/gin"
@@ -72,6 +72,10 @@ var (
     }
 )
 
+func RegFn(f func()) {
+    regFns = append(regFns, f)
+}
+
 // RegisterErrorHandle 简单的统一异常拦截,可自定义
 func RegisterErrorHandle(ginEngine *gin.Engine) {
     ginEngine.Handlers = append([]gin.HandlerFunc{func(context *gin.Context) {
@@ -106,7 +110,7 @@ func RegisterRouter(Gin *gin.Engine) {
     }
 }
 
-func registerRouter(group string, handler gin.HandlerFunc, relativePath string, methods ...string) {
+func DoRegisterGinRouter(group string, handler gin.HandlerFunc, relativePath string, methods ...string) {
     g := GetGroup(group)
     if len(methods) <= 0 {
         methods = allMethods
@@ -146,7 +150,7 @@ func AddGroupHandlers(group string, handlers ...gin.HandlerFunc) {
         g.Handlers = append(g.Handlers, handlers...)
     }
 }
-func toBindF(structPointer any, fn func(*gin.Context), funcName string) gin.HandlerFunc {
+func ToBindF(structPointer any, fn func(*gin.Context), funcName string) gin.HandlerFunc {
     return toBind(structPointer, funcName)
 }
 func toBind(structPointer any, funcName string) gin.HandlerFunc {

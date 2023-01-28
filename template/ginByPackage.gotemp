@@ -5,11 +5,12 @@ package routers
 
 import (
     "{{ .PackageBaseName }}/{{ .PackageName }}"
+    "{{ .PackageBaseName }}/routers/reg"
 )
 
 //function
 func init() {
-    regFns = append(regFns, func() {
+    reg.RegFn(func() {
 {{- range $f := .Functions }}
 {{- range $s := $f.Paths}}
         registerRouter("{{ $f.GroupPath }}", {{ $.PackageName }}.{{ $f.Name }},"{{ $s.PathMethod }}")
@@ -20,13 +21,13 @@ func init() {
 
 //struct function
 func init() {
-    regFns = append(regFns, func() {
+    reg.RegFn(func() {
 {{- range $f := .StructFunctions }}
         {
             p:=&{{ $.PackageName }}.{{ $f.StructName }}{}
-            h:=toBindF(p,p.{{ $f.Name }}, "{{ $f.Name }}")
+            h:=reg.ToBindF(p,p.{{ $f.Name }}, "{{ $f.Name }}")
 {{- range $s := $f.Paths}}
-            registerRouter("{{ $f.GroupPath }}", h, "{{$s.PathMethod}}")
+            reg.DoRegisterGinRouter("{{ $f.GroupPath }}", h, "{{$s.PathMethod}}")
 {{- end}}
         }
 {{- end}}
