@@ -124,8 +124,12 @@ func main() {
                     if !strings.HasPrefix(groupPath, "/") {
                         groupPath = "/" + groupPath
                     }
+                    if groupPath == "/" {
+                        groupPath = ""
+                    }
                     for i, p := range httpPath {
-                        httpPath[i].Path = strings.TrimLeft(p.Path, groupPath)
+                        httpPath[i].Path = strings.TrimPrefix(p.Path, groupPath)
+                        httpPath[i].PathMethod = strings.TrimPrefix(p.PathMethod, groupPath)
                     }
                     if d.Recv != nil && len(d.Recv.List) > 0 {
                         structType := d.Recv.List[0].Type
