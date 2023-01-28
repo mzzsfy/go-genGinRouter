@@ -178,6 +178,7 @@ func toBind(structPointer any, funcName string) gin.HandlerFunc {
             if err != nil {
                 context.Status(400)
                 _ = context.Error(err)
+                context.Abort()
                 return
             }
         }
