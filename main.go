@@ -18,7 +18,7 @@ import (
 
 var (
     routerAnnotation   = "@Router"
-    basePathAnnotation = "@BasePath"
+    basePathAnnotation = "@RouterGroup"
     //go:embed template/ginByPackage.gotemp
     ginByPackageTemplate []byte
     //go:embed template/main.gotemp
@@ -35,9 +35,9 @@ type HttpPath struct {
 }
 type Function struct {
     FileInfo
-    BasePath string
-    Name     string
-    Paths    []HttpPath
+    GroupPath string
+    Name      string
+    Paths     []HttpPath
 }
 type StructFunction struct {
     Function
@@ -76,19 +76,19 @@ func main() {
         }
         pc.PackageName = pname
         for fname, f := range p.Files {
-            fileBasePath := ""
+            fileGroupPath := ""
             for _, commentGroup := range f.Comments {
                 for _, comment := range commentGroup.List {
                     text := strings.TrimSpace(comment.Text[2:])
                     if strings.HasPrefix(text, basePathAnnotation) {
-                        if fileBasePath == "" || len(commentGroup.List) <= 3 {
-                            fileBasePath = strings.TrimSpace(text[9:])
+                        if fileGroupPath == "" || len(commentGroup.List) <= 3 {
+                            fileGroupPath = strings.TrimSpace(text[9:])
                         }
                     }
                 }
             }
             for _, dx := range f.Decls {
-                basePath := fileBasePath
+                groupPath := fileGroupPath
                 switch d := dx.(type) {
                 case *ast.FuncDecl:
                     if d.Doc == nil || len(d.Doc.List) == 0 {
@@ -115,11 +115,17 @@ func main() {
                             }
                             httpPath = append(httpPath, e)
                         } else if strings.HasPrefix(text, basePathAnnotation) {
-                            basePath = strings.TrimSpace(text[9:])
+                            groupPath = strings.TrimSpace(text[9:])
                         }
                     }
                     if len(httpPath) <= 0 {
                         continue
+                    }
+                    if !strings.HasPrefix(groupPath, "/") {
+                        groupPath = "/" + groupPath
+                    }
+                    for _, p := range httpPath {
+                        p.Path = strings.TrimLeft(p.Path, groupPath)
                     }
                     if d.Recv != nil && len(d.Recv.List) > 0 {
                         structType := d.Recv.List[0].Type
@@ -130,19 +136,19 @@ func main() {
 
                         pc.StructFunctions = append(pc.StructFunctions, StructFunction{
                             Function: Function{
-                                FileInfo: FileInfo{Path: fname},
-                                BasePath: basePath,
-                                Paths:    httpPath,
-                                Name:     d.Name.Name,
+                                FileInfo:  FileInfo{Path: fname},
+                                GroupPath: groupPath,
+                                Paths:     httpPath,
+                                Name:      d.Name.Name,
                             },
                             StructName: ident.Name,
                         })
                     } else {
                         pc.Functions = append(pc.Functions, Function{
-                            FileInfo: FileInfo{Path: fname},
-                            BasePath: basePath,
-                            Paths:    httpPath,
-                            Name:     d.Name.Name,
+                            FileInfo:  FileInfo{Path: fname},
+                            GroupPath: groupPath,
+                            Paths:     httpPath,
+                            Name:      d.Name.Name,
                         })
                     }
                 default:

@@ -7,12 +7,12 @@
 - 生成代码暴露部分核心部分,方便二次开发
 - 携带参数绑定功能,支持tag: `query`,`form`,`json`,`header`,`path`,可动态添加,见生成文件中:routers.BindByTag
 - 携带参数检验功能,使用 https://github.com/go-playground/validator/v10
-- 支持每个文件一个@BasePath,也可在方法上单独覆盖,不支持全局@BasePath,@BasePath逻辑为gin.Group()
+- 支持每个文件一个@RouterGroup,也可在方法上单独覆盖,不支持全局@RouterGroup,@RouterGroup逻辑为gin.Group(),方便统一添加中间件
 
 编写 go 文件并添加注释
 ```go
 package xxx
-// @BasePath /api/v1
+// @RouterGroup /api/v1
 
 // HelloWorld PingExample godoc
 // @Summary ping example
@@ -22,7 +22,7 @@ package xxx
 // @Accept json
 // @Produce json
 // @Success 200 {string} HelloWorld
-// @Router /example/helloworld [delete]
+// @Router /api/v1/example/helloworld [delete]
 func HelloWorld(g *gin.Context) {
     g.String(http.StatusOK, "helloworld")
 }
@@ -37,7 +37,7 @@ type Test struct {
 // @Accept json
 // @Produce json
 // @Success 200 {string} HelloWorld
-// @Router /example/helloworld1 [get]
+// @Router /api/v1/example/helloworld1 [get]
 func (t Test) HelloWorld1(g *gin.Context) {
     g.String(http.StatusOK, t.Name)
 }
@@ -59,7 +59,8 @@ func main() {
     // 简单的统一异常处理,可不注册自己编写
     routers.RegisterErrorHandle(g)
     // 在这里添加组中间件
-    
+    routers.AddGroupHandlers("<<组>>", func(context *gin.Context) {
+    })
     // 注册生成的路由
     routers.RegisterRouter(g)
     
@@ -73,5 +74,3 @@ func main() {
 ```
 go generate
 ```
-
-已知问题 @BasePath 不被 gin-swagger 正确解析
