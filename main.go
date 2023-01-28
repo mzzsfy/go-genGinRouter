@@ -17,8 +17,8 @@ import (
 )
 
 var (
-    routerAnnotation   = "@Router"
-    basePathAnnotation = "@RouterGroup"
+    routerAnnotation      = "@Router"
+    routerGroupAnnotation = "@RouterGroup"
     //go:embed template/ginByPackage.gotemp
     ginByPackageTemplate []byte
     //go:embed template/main.gotemp
@@ -80,9 +80,9 @@ func main() {
             for _, commentGroup := range f.Comments {
                 for _, comment := range commentGroup.List {
                     text := strings.TrimSpace(comment.Text[2:])
-                    if strings.HasPrefix(text, basePathAnnotation) {
+                    if strings.HasPrefix(text, routerGroupAnnotation) {
                         if fileGroupPath == "" || len(commentGroup.List) <= 3 {
-                            fileGroupPath = strings.TrimSpace(text[9:])
+                            fileGroupPath = strings.TrimSpace(text[len(routerGroupAnnotation)+1:])
                         }
                     }
                 }
@@ -99,7 +99,7 @@ func main() {
                         text := strings.TrimSpace(comment.Text[2:])
                         if strings.HasPrefix(text, routerAnnotation) {
                             m := ""
-                            p := strings.TrimSpace(text[8:])
+                            p := strings.TrimSpace(text[len(routerAnnotation)+1:])
                             if strings.Contains(p, "[") {
                                 p, m, _ = strings.Cut(p, "[")
                                 p = strings.TrimSpace(p)
@@ -114,8 +114,8 @@ func main() {
                                 e.PathMethod = p + `", "` + m
                             }
                             httpPath = append(httpPath, e)
-                        } else if strings.HasPrefix(text, basePathAnnotation) {
-                            groupPath = strings.TrimSpace(text[9:])
+                        } else if strings.HasPrefix(text, routerGroupAnnotation) {
+                            groupPath = strings.TrimSpace(text[len(routerGroupAnnotation)+1:])
                         }
                     }
                     if len(httpPath) <= 0 {
