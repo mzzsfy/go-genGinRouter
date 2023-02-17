@@ -13,7 +13,7 @@ func init() {
     reg.RegFn(func() {
 {{- range $f := .Functions }}
 {{- range $s := $f.Paths}}
-        registerRouter("{{ $f.GroupPath }}", {{ $.PackageName }}.{{ $f.Name }},"{{ $s.PathMethod }}")
+        reg.DoRegisterGinRouter("{{ $f.GroupPath }}", {{ $.PackageName }}.{{ $f.Name }},"{{ $s.PathMethod }}")
 {{- end -}}
 {{- end}}
     })
